@@ -79,6 +79,8 @@ runs:
         tenant-id: ${{ inputs.tenant_id }}
         allow-no-subscriptions: true
         enable-AzPSSession: true
+        environment: AzureUSGovernment
+        audience: api://AzureADTokenExchangeUSGov
 
     - name: Set current date as env variable
       shell: bash
