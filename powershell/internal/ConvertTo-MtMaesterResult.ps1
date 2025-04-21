@@ -100,7 +100,31 @@ function ConvertTo-MtMaesterResult {
             $helpUrl = $name.Substring($start + 4).Trim() #Strip away the "See https://maester.dev" part
             $name = $name.Substring(0, $start).Trim() #Strip away the "See https://maester.dev" part
         }
+
+        $testCustomName = $__MtSession.TestResultDetail[$test.ExpandedName].TestTitle
+        if ($null -eq $testCustomName) {
+            $testCustomName = $name
+        }
+        # Find the first : and use the first part as $testId and remaining as $testTitle
+        # If no : is found or if there are spaces before the first : display a warning that the test name is not in the correct format
+        $testSplit = $testCustomName -split ':'
+        $testId = $testCustomName # Default to the full test name if no split is found
+        $testTitle = $testCustomName # Default to the full test name if no split is found
+
+        if ($testSplit.Count -eq 1) {
+            Write-Warning "Test name does not contain a ':' character. Please use the format 'TestId: TestTitle' → $testCustomName"
+        } elseif ($testSplit[0] -match '\s') {
+            Write-Warning "Test name contains spaces before the ':' character. Please use the format 'TestId: TestTitle' → $testCustomName"
+        } else {
+            $testId = $testSplit[0].Trim()
+            $testTitle = $testSplit[1].Trim()
+        }
+
+
+        $timeSpanFormat = 'hh\:mm\:ss'
         $mtTestInfo = [PSCustomObject]@{
+            Id              = $testId
+            Title           = $testTitle
             Name            = $name
             HelpUrl         = $helpUrl
             Tag             = @($test.Block.Tag + $test.Tag | Select-Object -Unique)
@@ -109,6 +133,7 @@ function ConvertTo-MtMaesterResult {
             ScriptBlockFile = $test.ScriptBlock.File
             ErrorRecord     = $test.ErrorRecord
             Block           = $test.Block.ExpandedName
+            Duration        = $test.Duration.ToString($timeSpanFormat)
             ResultDetail    = $__MtSession.TestResultDetail[$test.ExpandedName]
         }
         $mtTests += $mtTestInfo
@@ -142,19 +167,23 @@ function ConvertTo-MtMaesterResult {
     }
 
     $mtTestResults = [PSCustomObject]@{
-        Result         = $PesterResults.Result
-        FailedCount    = $PesterResults.FailedCount
-        PassedCount    = $PesterResults.PassedCount
-        SkippedCount   = $PesterResults.SkippedCount
-        TotalCount     = $PesterResults.TotalCount
-        ExecutedAt     = GetFormattedDate($PesterResults.ExecutedAt)
-        TenantId       = $tenantId
-        TenantName     = $tenantName
-        Account        = $account
-        CurrentVersion = $currentVersion
-        LatestVersion  = $latestVersion
-        Tests          = $mtTests
-        Blocks         = $mtBlocks
+        Result            = $PesterResults.Result
+        FailedCount       = $PesterResults.FailedCount
+        PassedCount       = $PesterResults.PassedCount
+        SkippedCount      = $PesterResults.SkippedCount
+        TotalCount        = $PesterResults.TotalCount
+        ExecutedAt        = GetFormattedDate($PesterResults.ExecutedAt)
+        TotalDuration     = $PesterResults.Duration.ToString($timeSpanFormat)
+        UserDuration      = $PesterResults.UserDuration.ToString($timeSpanFormat)
+        DiscoveryDuration = $PesterResults.DiscoveryDuration.ToString($timeSpanFormat)
+        FrameworkDuration = $PesterResults.FrameworkDuration.ToString($timeSpanFormat)
+        TenantId          = $tenantId
+        TenantName        = $tenantName
+        Account           = $account
+        CurrentVersion    = $currentVersion
+        LatestVersion     = $latestVersion
+        Tests             = $mtTests
+        Blocks            = $mtBlocks
     }
 
     return $mtTestResults
